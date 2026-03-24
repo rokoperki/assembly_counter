@@ -93,6 +93,23 @@ entrypoint:
     call sol_memcmp_
     jne r0, 0, error_invalid_pda
 
+    mov64 r1, r8
+    ldxb r6, [r1 + INSTRUCTION_DATA]
+    jeq r6, 0x0, create
+    jeq r6, 0x1, increment
+    jeq r6, 0x2, decrement
+    ja error_invalid_instruction
+
+    exit
+
+
+create:
+    exit
+
+increment:
+    exit
+
+decrement:
     exit
 
 error_invalid_pda:
