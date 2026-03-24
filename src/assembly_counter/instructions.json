@@ -1,0 +1,33 @@
+{
+  "accounts": [
+    {
+      "key": "524HMdYYBy6TAn4dK5vCcjiTmT2sxV6Xoue5EXrz22Ca",
+      "owner": "11111111111111111111111111111111",
+      "is_signer": true,
+      "is_writable": true,
+      "executable": false,
+      "lamports": 1000000000,
+      "data": []
+    },
+    {
+      "key": "3jEFyMXpb4opxFYpqwksxx4UybxrkhucmZncv3U7Ycko",
+      "owner": "11111111111111111111111111111111",
+      "is_signer": false,
+      "is_writable": true,
+      "executable": false,
+      "lamports": 0,
+      "data": []
+    },
+    {
+      "key": "11111111111111111111111111111111",
+      "owner": "NativeLoader1111111111111111111111111111111",
+      "is_signer": false,
+      "is_writable": false,
+      "executable": true,
+      "lamports": 1,
+      "data": []
+    }
+  ],
+  "program_id": "HTpqQdG7f44su3QsV3HHurraR1ZNjHAdArCy3qHKyKBC",
+  "instruction_data": [0, 253]
+}
