@@ -90,8 +90,11 @@ entrypoint:
     mov64 r2, r8
     add64 r2, COUNTER_KEY           ; r2 = expected counter key
     mov64 r3, 32                    ; r3 = length
+    mov64 r4, r9
+    add64 r4, 88                    ; r4 = result ptr (i32 written here by syscall)
     call sol_memcmp_
-    jne r0, 0, error_invalid_pda
+    ldxw r6, [r9 + 88]
+    jne r6, 0, error_invalid_pda
 
     mov64 r1, r8
     ldxb r6, [r1 + INSTRUCTION_DATA]
