@@ -31,14 +31,25 @@
 .globl entrypoint
 
 entrypoint:
-    ldxdw r4, [r1 + INSTRUCTION_DATA_LEN]
+    mov64 r8, r1                    ; save input buffer ptr
+
+    ; Compute offset adjustment: counter data section may be 0 or 8 bytes,
+    ; shifting all offsets after COUNTER_DATA (SYSTEM_PROGRAM_*, INSTRUCTION_DATA*).
+    ; COUNTER_DATA_LEN is at a fixed position (before the variable data section).
+    ldxdw r7, [r8 + COUNTER_DATA_LEN]   ; r7 = counter data_len (0 for create, 8 for inc/dec)
+    add64 r7, 7
+    and64 r7, -8                    ; r7 = counter_data_len rounded up to 8 (offset adjustment)
+
+    ; Check instruction data length (with adjustment)
+    mov64 r6, r8
+    add64 r6, INSTRUCTION_DATA_LEN
+    add64 r6, r7
+    ldxdw r4, [r6 + 0]
     jne r4, 2, error_invalid_instruction
 
     ##########################
     ##     Prepare seeds    ##
     ##########################
-
-    mov64 r8, r1                    ; save input buffer ptr (r1 will be clobbered by syscall)
 
     mov64 r9, r10
     sub64 r9, 96
@@ -56,8 +67,11 @@ entrypoint:
     mov64 r6, 32
     stxdw [r9 + 24], r6            ; seed[1].len  = 32
 
-    ; seed[2] = {bump, 1}  — bump stored at r9+48
-    ldxb r6, [r8 + INSTRUCTION_DATA + 1]
+    ; seed[2] = {bump, 1}  — bump stored at r9+48 (at INSTRUCTION_DATA+1, adjusted)
+    mov64 r6, r8
+    add64 r6, INSTRUCTION_DATA
+    add64 r6, r7
+    ldxb r6, [r6 + 1]              ; load bump byte (adjusted)
     stxb [r9 + 48], r6             ; store bump byte on stack
     mov64 r6, r9
     add64 r6, 48
@@ -69,10 +83,11 @@ entrypoint:
     ##      PDA check       ##
     ##########################
 
-    ; r3 = program_id ptr (follows instruction data in input buffer: INSTRUCTION_DATA + 2)
+    ; r3 = program_id ptr (INSTRUCTION_DATA + 2, adjusted)
     mov64 r3, r8
     add64 r3, INSTRUCTION_DATA
     add64 r3, 2
+    add64 r3, r7
 
     ; r4 = output buffer for derived address (r9 + 56, 32 bytes)
     mov64 r4, r9
@@ -96,8 +111,11 @@ entrypoint:
     ldxw r6, [r9 + 88]
     jne r6, 0, error_invalid_pda
 
-    mov64 r1, r8
-    ldxb r6, [r1 + INSTRUCTION_DATA]
+    ; load discriminator (INSTRUCTION_DATA, adjusted)
+    mov64 r6, r8
+    add64 r6, INSTRUCTION_DATA
+    add64 r6, r7
+    ldxb r6, [r6 + 0]
     jeq r6, 0x0, create
     jeq r6, 0x1, increment
     jeq r6, 0x2, decrement
@@ -268,7 +286,8 @@ increment:
     add64 r1, COUNTER_OWNER         ; r1 = counter owner ptr
     mov64 r2, r8
     add64 r2, INSTRUCTION_DATA
-    add64 r2, 2                     ; r2 = program_id ptr
+    add64 r2, 2
+    add64 r2, r7                    ; r2 = program_id ptr (adjusted)
     mov64 r3, 32
     mov64 r4, r9
     add64 r4, 88                    ; r4 = result ptr
@@ -296,7 +315,8 @@ decrement:
     add64 r1, COUNTER_OWNER         ; r1 = counter owner ptr
     mov64 r2, r8
     add64 r2, INSTRUCTION_DATA
-    add64 r2, 2                     ; r2 = program_id ptr
+    add64 r2, 2
+    add64 r2, r7                    ; r2 = program_id ptr (adjusted)
     mov64 r3, 32
     mov64 r4, r9
     add64 r4, 88                    ; r4 = result ptr

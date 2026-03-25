@@ -158,4 +158,241 @@ mod tests {
             &[Check::err(ProgramError::Custom(0))],
         );
     }
+
+    fn setup_initialized_counter(
+        program_id_bytes: [u8; 32],
+        value: u64,
+    ) -> (Pubkey, Account) {
+        let owner = Pubkey::new_from_array(program_id_bytes);
+        let mut account = Account::new(890_880, 8, &owner);
+        account.data = value.to_le_bytes().to_vec();
+        (owner, account)
+    }
+
+    #[test]
+    fn test_increment() {
+        let program_id_keypair_bytes: [u8; 32] =
+            std::fs::read("deploy/assembly_counter-keypair.json").unwrap()[..32]
+                .try_into()
+                .expect("slice with incorrect length");
+        let program_id = Address::new_from_array(program_id_keypair_bytes);
+
+        let payer = Pubkey::new_unique();
+        let (counter_pda, bump) =
+            Pubkey::find_program_address(&[b"counter", payer.as_ref()], &program_id);
+        let (system_program_key, system_program_account) = keyed_account_for_system_program();
+        let (_, counter_account) = setup_initialized_counter(program_id_keypair_bytes, 0);
+
+        let mollusk = Mollusk::new(&program_id, "deploy/assembly_counter");
+
+        let instruction = Instruction::new_with_bytes(
+            program_id,
+            &[1, bump],
+            vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(counter_pda, false),
+                AccountMeta::new_readonly(system_program_key, false),
+            ],
+        );
+
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (payer, Account::new(1_000_000_000, 0, &system_program_key)),
+                (counter_pda, counter_account),
+                (system_program_key, system_program_account),
+            ],
+            &[
+                Check::success(),
+                Check::account(&counter_pda).data(&1u64.to_le_bytes()).build(),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_increment_not_initialized() {
+        let program_id_keypair_bytes: [u8; 32] =
+            std::fs::read("deploy/assembly_counter-keypair.json").unwrap()[..32]
+                .try_into()
+                .expect("slice with incorrect length");
+        let program_id = Address::new_from_array(program_id_keypair_bytes);
+
+        let payer = Pubkey::new_unique();
+        let (counter_pda, bump) =
+            Pubkey::find_program_address(&[b"counter", payer.as_ref()], &program_id);
+        let (system_program_key, system_program_account) = keyed_account_for_system_program();
+
+        let mollusk = Mollusk::new(&program_id, "deploy/assembly_counter");
+
+        let instruction = Instruction::new_with_bytes(
+            program_id,
+            &[1, bump],
+            vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(counter_pda, false),
+                AccountMeta::new_readonly(system_program_key, false),
+            ],
+        );
+
+        // counter owned by system program — not initialized
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (payer, Account::new(1_000_000_000, 0, &system_program_key)),
+                (counter_pda, Account::new(0, 8, &system_program_key)),
+                (system_program_key, system_program_account),
+            ],
+            &[Check::err(ProgramError::Custom(0xe))],
+        );
+    }
+
+    #[test]
+    fn test_increment_overflow() {
+        let program_id_keypair_bytes: [u8; 32] =
+            std::fs::read("deploy/assembly_counter-keypair.json").unwrap()[..32]
+                .try_into()
+                .expect("slice with incorrect length");
+        let program_id = Address::new_from_array(program_id_keypair_bytes);
+
+        let payer = Pubkey::new_unique();
+        let (counter_pda, bump) =
+            Pubkey::find_program_address(&[b"counter", payer.as_ref()], &program_id);
+        let (system_program_key, system_program_account) = keyed_account_for_system_program();
+        let (_, counter_account) = setup_initialized_counter(program_id_keypair_bytes, u64::MAX);
+
+        let mollusk = Mollusk::new(&program_id, "deploy/assembly_counter");
+
+        let instruction = Instruction::new_with_bytes(
+            program_id,
+            &[1, bump],
+            vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(counter_pda, false),
+                AccountMeta::new_readonly(system_program_key, false),
+            ],
+        );
+
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (payer, Account::new(1_000_000_000, 0, &system_program_key)),
+                (counter_pda, counter_account),
+                (system_program_key, system_program_account),
+            ],
+            &[Check::err(ProgramError::Custom(0x10))],
+        );
+    }
+
+    #[test]
+    fn test_decrement() {
+        let program_id_keypair_bytes: [u8; 32] =
+            std::fs::read("deploy/assembly_counter-keypair.json").unwrap()[..32]
+                .try_into()
+                .expect("slice with incorrect length");
+        let program_id = Address::new_from_array(program_id_keypair_bytes);
+
+        let payer = Pubkey::new_unique();
+        let (counter_pda, bump) =
+            Pubkey::find_program_address(&[b"counter", payer.as_ref()], &program_id);
+        let (system_program_key, system_program_account) = keyed_account_for_system_program();
+        let (_, counter_account) = setup_initialized_counter(program_id_keypair_bytes, 5);
+
+        let mollusk = Mollusk::new(&program_id, "deploy/assembly_counter");
+
+        let instruction = Instruction::new_with_bytes(
+            program_id,
+            &[2, bump],
+            vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(counter_pda, false),
+                AccountMeta::new_readonly(system_program_key, false),
+            ],
+        );
+
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (payer, Account::new(1_000_000_000, 0, &system_program_key)),
+                (counter_pda, counter_account),
+                (system_program_key, system_program_account),
+            ],
+            &[
+                Check::success(),
+                Check::account(&counter_pda).data(&4u64.to_le_bytes()).build(),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_decrement_not_initialized() {
+        let program_id_keypair_bytes: [u8; 32] =
+            std::fs::read("deploy/assembly_counter-keypair.json").unwrap()[..32]
+                .try_into()
+                .expect("slice with incorrect length");
+        let program_id = Address::new_from_array(program_id_keypair_bytes);
+
+        let payer = Pubkey::new_unique();
+        let (counter_pda, bump) =
+            Pubkey::find_program_address(&[b"counter", payer.as_ref()], &program_id);
+        let (system_program_key, system_program_account) = keyed_account_for_system_program();
+
+        let mollusk = Mollusk::new(&program_id, "deploy/assembly_counter");
+
+        let instruction = Instruction::new_with_bytes(
+            program_id,
+            &[2, bump],
+            vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(counter_pda, false),
+                AccountMeta::new_readonly(system_program_key, false),
+            ],
+        );
+
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (payer, Account::new(1_000_000_000, 0, &system_program_key)),
+                (counter_pda, Account::new(0, 8, &system_program_key)),
+                (system_program_key, system_program_account),
+            ],
+            &[Check::err(ProgramError::Custom(0xe))],
+        );
+    }
+
+    #[test]
+    fn test_decrement_underflow() {
+        let program_id_keypair_bytes: [u8; 32] =
+            std::fs::read("deploy/assembly_counter-keypair.json").unwrap()[..32]
+                .try_into()
+                .expect("slice with incorrect length");
+        let program_id = Address::new_from_array(program_id_keypair_bytes);
+
+        let payer = Pubkey::new_unique();
+        let (counter_pda, bump) =
+            Pubkey::find_program_address(&[b"counter", payer.as_ref()], &program_id);
+        let (system_program_key, system_program_account) = keyed_account_for_system_program();
+        let (_, counter_account) = setup_initialized_counter(program_id_keypair_bytes, 0);
+
+        let mollusk = Mollusk::new(&program_id, "deploy/assembly_counter");
+
+        let instruction = Instruction::new_with_bytes(
+            program_id,
+            &[2, bump],
+            vec![
+                AccountMeta::new(payer, true),
+                AccountMeta::new(counter_pda, false),
+                AccountMeta::new_readonly(system_program_key, false),
+            ],
+        );
+
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (payer, Account::new(1_000_000_000, 0, &system_program_key)),
+                (counter_pda, counter_account),
+                (system_program_key, system_program_account),
+            ],
+            &[Check::err(ProgramError::Custom(0x11))],
+        );
+    }
 }
