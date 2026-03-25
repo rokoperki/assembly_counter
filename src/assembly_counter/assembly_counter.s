@@ -138,7 +138,7 @@ create:
     mov64 r5, r9
     add64 r5, 148
     mov64 r3, r8
-    add64 r3, OWNER_KEY         ; pubkey ptr
+    add64 r3, OWNER_KEY           ; pubkey ptr
     stxdw [r5 + 0], r3
     mov64 r3, 1
     stxb [r5 + 8], r3           ; is_writable
@@ -153,7 +153,7 @@ create:
     stxdw [r5 + 0], r3
     mov64 r3, 1
     stxb [r5 + 8], r3           ; is_writable
-    mov64 r3, 0
+    mov64 r3, 1
     stxb [r5 + 9], r3           ; is_signer
 
     #########################################
@@ -180,9 +180,9 @@ create:
     #########################################
 
     mov64 r6, r9
-    add64 r6, 220               ; r6 = account metas ptr (r9+220)
+    add64 r6, 220               ; r6 = account infos ptr (r9+220)
 
-    ; owner
+    ; payer/owner info at r9+220
     mov64 r3, r8
     add64 r3, OWNER_KEY
     stxdw [r6 + 0], r3         ; owner key ptr
@@ -190,10 +190,10 @@ create:
     add64 r3, OWNER_LAMPORTS
     stxdw [r6 + 8], r3         ; owner lamports ptr
     ldxdw r3, [r8 + OWNER_DATA_LEN]
-    stxdw [r6 + 16], r3        ; owner data ptr
+    stxdw [r6 + 16], r3        ; owner data len
     mov64 r3, r8
     add64 r3, OWNER_DATA
-    stxdw [r6 + 24], r3        ; owner data
+    stxdw [r6 + 24], r3        ; owner data ptr
     mov64 r3, r8
     add64 r3, OWNER_OWNER
     stxdw [r6 + 32], r3        ; owner owner ptr
@@ -206,7 +206,9 @@ create:
     ldxb r3, [r8 + OWNER_HEADER + 3]
     stxb [r6 + 50], r3        ; is_executable
 
+
     add64 r6, 56               ; r6 = counter account info
+    ; counter info at r9+276
     mov64 r3, r8
     add64 r3, COUNTER_KEY
     stxdw [r6 + 0], r3         ; counter key ptr
@@ -214,7 +216,7 @@ create:
     add64 r3, COUNTER_LAMPORTS
     stxdw [r6 + 8], r3         ; counter lamports ptr
     ldxdw r3, [r8 + COUNTER_DATA_LEN]
-    stxdw [r6 + 16], r3        ; counter data ptr
+    stxdw [r6 + 16], r3        ; counter data len
     mov64 r3, r8
     add64 r3, COUNTER_DATA
     stxdw [r6 + 24], r3        ; counter data ptr
@@ -222,13 +224,14 @@ create:
     add64 r3, COUNTER_OWNER
     stxdw [r6 + 32], r3        ; counter owner ptr
     ldxdw r3,  [r8 + COUNTER_RENT_EPOCH]
-    stxdw [r6 + 40], r3        ; counter rent epoch ptr
+    stxdw [r6 + 40], r3        ; counter rent epoch
     ldxb r3, [r8 + COUNTER_HEADER + 1]
     stxb [r6 + 48], r3        ; is_signer
     ldxb r3, [r8 + COUNTER_HEADER + 2]
     stxb [r6 + 49], r3        ; is_writable
     ldxb r3, [r8 + COUNTER_HEADER + 3]
     stxb [r6 + 50], r3        ; is_executable
+
 
     #########################################
     ##       Call CreateAccount CPI        ##
@@ -264,24 +267,24 @@ decrement:
 
 
 error_create_failed:
-    lddw r0, 0xd
     lddw r1, create_account_error_log
     mov64 r2, 21
     call sol_log_
+    lddw r0, 0xd
     exit
 
 error_invalid_pda:
-    lddw r0, 0xc
     lddw r1, invalid_pda_error_log
     mov64 r2, 11
     call sol_log_
+    lddw r0, 0xc
     exit
 
 error_invalid_instruction:
-    lddw r0, 0xb
     lddw r1, invalid_instruction_error_log
     mov64 r2, 19
     call sol_log_
+    lddw r0, 0xb
     exit
 
 
