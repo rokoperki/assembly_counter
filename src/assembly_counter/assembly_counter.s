@@ -129,8 +129,130 @@ create:
     ldxdw r5, [r8 + INSTRUCTION_DATA + 26]
     stxdw [r6 + 44], r5                     ; owner = program_id (bytes 2-33 of ix data)
 
-    
 
+    #######################################
+    ## Build CreateAccount Acount metas  ##
+    #######################################
+
+    ;payer meta at r9+148
+    mov64 r5, r9
+    add64 r5, 148
+    mov64 r3, r8
+    add64 r3, OWNER_KEY         ; pubkey ptr
+    stxdw [r5 + 0], r3
+    mov64 r3, 1
+    stxb [r5 + 8], r3           ; is_writable
+    mov64 r3, 1
+    stxb [r5 + 9], r3           ; is_signer
+
+    ; counter meta at r9+164
+    mov64 r5, r9
+    add64 r5, 164
+    mov64 r3, r8
+    add64 r3, COUNTER_KEY
+    stxdw [r5 + 0], r3
+    mov64 r3, 1
+    stxb [r5 + 8], r3           ; is_writable
+    mov64 r3, 0
+    stxb [r5 + 9], r3           ; is_signer
+
+    #########################################
+    ##   Build CreateAccount Instruction   ##
+    #########################################
+
+    mov64 r7, r9
+    add64 r7, 180               ; r7 = instruction ptr
+
+    mov64 r3, r8
+    add64 r3, SYSTEM_PROGRAM_KEY
+    stxdw [r7 + 0], r3          ; program_id ptr
+    mov64 r3, r9
+    add64 r3, 148
+    stxdw [r7 + 8], r3          ; account metas ptr (r9+148)
+    mov64 r3, 2
+    stxdw [r7 + 16], r3         ; num_accounts
+    stxdw [r7 + 24], r6         ; instruction data ptr (r9 + 96)
+    mov64 r3, 52
+    stxdw [r7 + 32], r3         ; data_len
+
+    #########################################
+    ##       Build Sol Account Infos       ##
+    #########################################
+
+    mov64 r6, r9
+    add64 r6, 220               ; r6 = account metas ptr (r9+220)
+
+    ; owner
+    mov64 r3, r8
+    add64 r3, OWNER_KEY
+    stxdw [r6 + 0], r3         ; owner key ptr
+    mov64 r3, r8
+    add64 r3, OWNER_LAMPORTS
+    stxdw [r6 + 8], r3         ; owner lamports ptr
+    ldxdw r3, [r8 + OWNER_DATA_LEN]
+    stxdw [r6 + 16], r3        ; owner data ptr
+    mov64 r3, r8
+    add64 r3, OWNER_DATA
+    stxdw [r6 + 24], r3        ; owner data
+    mov64 r3, r8
+    add64 r3, OWNER_OWNER
+    stxdw [r6 + 32], r3        ; owner owner ptr
+    ldxdw r3,  [r8 + OWNER_RENT_EPOCH]
+    stxdw [r6 + 40], r3        ; owner rent epoch
+    ldxb r3, [r8 + OWNER_HEADER + 1]
+    stxb [r6 + 48], r3        ; is_signer
+    ldxb r3, [r8 + OWNER_HEADER + 2]
+    stxb [r6 + 49], r3        ; is_writable
+    ldxb r3, [r8 + OWNER_HEADER + 3]
+    stxb [r6 + 50], r3        ; is_executable
+
+    add64 r6, 56               ; r6 = counter account info
+    mov64 r3, r8
+    add64 r3, COUNTER_KEY
+    stxdw [r6 + 0], r3         ; counter key ptr
+    mov64 r3, r8
+    add64 r3, COUNTER_LAMPORTS
+    stxdw [r6 + 8], r3         ; counter lamports ptr
+    ldxdw r3, [r8 + COUNTER_DATA_LEN]
+    stxdw [r6 + 16], r3        ; counter data ptr
+    mov64 r3, r8
+    add64 r3, COUNTER_DATA
+    stxdw [r6 + 24], r3        ; counter data ptr
+    mov64 r3, r8
+    add64 r3, COUNTER_OWNER
+    stxdw [r6 + 32], r3        ; counter owner ptr
+    ldxdw r3,  [r8 + COUNTER_RENT_EPOCH]
+    stxdw [r6 + 40], r3        ; counter rent epoch ptr
+    ldxb r3, [r8 + COUNTER_HEADER + 1]
+    stxb [r6 + 48], r3        ; is_signer
+    ldxb r3, [r8 + COUNTER_HEADER + 2]
+    stxb [r6 + 49], r3        ; is_writable
+    ldxb r3, [r8 + COUNTER_HEADER + 3]
+    stxb [r6 + 50], r3        ; is_executable
+
+    #########################################
+    ##       Call CreateAccount CPI        ##
+    #########################################
+
+    ; signer seeds wrapper at r9+52
+    mov64 r3, r9
+    add64 r3, 332
+    stxdw [r9 + 52], r3    ; ptr to seeds array (r9+0)
+    mov64 r3, 3
+    stxdw [r9 + 60], r3    ; num seeds
+
+    ; call sol_invoke_signed_c
+    mov64 r1, r7            ; SolInstruction (r9+180)
+    mov64 r2, r9
+    add64 r2, 220           ; account infos (r9+220)
+    mov64 r3, 2             ; num account infos
+    mov64 r4, r9
+    add64 r4, 52            ; signer seeds wrapper
+    mov64 r5, 1             ; num signers
+    call sol_invoke_signed_c
+
+    jne r0, 0, error_create_failed
+    mov64 r0, 0
 
     exit
 
@@ -138,6 +260,14 @@ increment:
     exit
 
 decrement:
+    exit
+
+
+error_create_failed:
+    lddw r0, 0xd
+    lddw r1, create_account_error_log
+    mov64 r2, 21
+    call sol_log_
     exit
 
 error_invalid_pda:
@@ -158,4 +288,5 @@ error_invalid_instruction:
 .rodata
     invalid_pda_error_log: .ascii "Invalid PDA"
     invalid_instruction_error_log: .ascii "Invalid instruction"
+    create_account_error_log: .ascii "Create account failed"
     counter_seed: .ascii "counter"
