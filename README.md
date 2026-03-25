@@ -76,6 +76,23 @@ cargo test
 
 Tests use [mollusk-svm](https://github.com/buffalojoec/mollusk) to execute the program in an in-process SVM without a validator.
 
+## Comparison with other frameworks
+
+Rough estimates for an equivalent counter program:
+
+| | Assembly (this) | Pinocchio | Native Rust | Anchor |
+|---|---|---|---|---|
+| Binary size | **3.7 KB** | ~10-20 KB | ~50-100 KB | ~150-300 KB |
+| `create` CUs | **2,826** | ~3,000-4,000 | ~4,000-7,000 | ~10,000-20,000 |
+| `increment` CUs | **1,597** | ~1,700-2,500 | ~2,500-4,000 | ~5,000-10,000 |
+
+- **Anchor** — heaviest. Adds discriminator checks, account validation macros, IDL generation, and links the entire framework.
+- **Native Rust** — lighter, but still carries the Rust runtime, borsh deserialization, and solana-program overhead.
+- **Pinocchio** — designed to minimize overhead and get close to assembly. Zero-copy account parsing, no borsh, minimal runtime. Gets within ~10-20% of assembly at a fraction of the development effort.
+- **Assembly** — no runtime, no deserialization, no framework. Every byte is intentional. The tradeoff is complexity — hard to write, hard to debug.
+
+For most programs Pinocchio is the practical sweet spot. Raw assembly makes sense for extremely performance-critical paths or as a learning exercise.
+
 ## Binary size and compute units
 
 The compiled `.so` is **3728 bytes**.
