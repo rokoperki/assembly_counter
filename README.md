@@ -76,6 +76,20 @@ cargo test
 
 Tests use [mollusk-svm](https://github.com/buffalojoec/mollusk) to execute the program in an in-process SVM without a validator.
 
+## Binary size and compute units
+
+The compiled `.so` is **3728 bytes**.
+
+Compute units consumed per instruction (measured via mollusk tests):
+
+| Instruction | CUs |
+|---|---|
+| `create` (success) | 2826 |
+| `increment` (success) | 1597 |
+| `decrement` (success) | 1597 |
+
+For context, Solana's default compute unit limit per transaction is 200,000 CUs and the maximum is 1,400,000 CUs.
+
 ## Tracing
 
 `trace.txt.0` contains a full execution trace of the `create` instruction. Each line shows the assembly instruction being executed along with the register state at that point — useful for stepping through the logic and verifying register values.
