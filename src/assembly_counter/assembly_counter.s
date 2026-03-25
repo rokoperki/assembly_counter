@@ -263,6 +263,7 @@ create:
     exit
 
 increment:
+    ;OWNER CHECK - IS ACCOUNT INITIALIZED
     mov64 r1, r8
     add64 r1, COUNTER_OWNER         ; r1 = counter owner ptr
     mov64 r2, r8
@@ -274,13 +275,23 @@ increment:
     call sol_memcmp_
     ldxw r6, [r9 + 88]
     jne r6, 0, error_not_initialized
+
+    ;DATA LENGTH CHECK
+    ldxdw r6, [r8 + COUNTER_DATA_LEN]
+    jne r6, 8, error_invalid_data_len
+
+    ;OVERFLOW CHECK
     ldxdw r2, [r8 + COUNTER_DATA]
+    lddw r6, 0xffffffffffffffff
+    jeq r2, r6, error_overflow
+
     add64 r2, 1
     stxdw [r8 + COUNTER_DATA], r2
     mov64 r0, 0
     exit
 
 decrement:
+    ;OWNER CHECK - IS ACCOUNT INITIALIZED
     mov64 r1, r8
     add64 r1, COUNTER_OWNER         ; r1 = counter owner ptr
     mov64 r2, r8
@@ -292,12 +303,38 @@ decrement:
     call sol_memcmp_
     ldxw r6, [r9 + 88]
     jne r6, 0, error_not_initialized
+
+    ;DATA LENGTH CHECK
+    ldxdw r6, [r8 + COUNTER_DATA_LEN]
+    jne r6, 8, error_invalid_data_len
+
+    ;UNDERFLOW CHECK
     ldxdw r2, [r8 + COUNTER_DATA]
+    jeq r2, 0, error_underflow
+
     sub64 r2, 1
     stxdw [r8 + COUNTER_DATA], r2
     mov64 r0, 0
     exit
 
+error_invalid_data_len:
+    lddw r1, invalid_data_len_error_log
+    mov64 r2, 16
+    call sol_log_
+    lddw r0, 0xf
+    exit
+error_overflow:
+    lddw r1, overflow_error_log
+    mov64 r2, 8
+    call sol_log_
+    lddw r0, 0x10
+    exit
+error_underflow:
+    lddw r1, underflow_error_log
+    mov64 r2, 9
+    call sol_log_
+    lddw r0, 0x11
+    exit
 
 error_create_failed:
     lddw r1, create_account_error_log
@@ -332,5 +369,8 @@ error_invalid_instruction:
     invalid_pda_error_log: .ascii "Invalid PDA"
     invalid_instruction_error_log: .ascii "Invalid instruction"
     create_account_error_log: .ascii "Create account failed"
+    invalid_data_len_error_log: .ascii "Invalid data len"
+    overflow_error_log: .ascii "Overflow"
+    underflow_error_log: .ascii "Underflow"
     not_initialized_error_log: .ascii "Not initialized"
     counter_seed: .ascii "counter"
