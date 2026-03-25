@@ -263,9 +263,39 @@ create:
     exit
 
 increment:
+    mov64 r1, r8
+    add64 r1, COUNTER_OWNER         ; r1 = counter owner ptr
+    mov64 r2, r8
+    add64 r2, INSTRUCTION_DATA
+    add64 r2, 2                     ; r2 = program_id ptr
+    mov64 r3, 32
+    mov64 r4, r9
+    add64 r4, 88                    ; r4 = result ptr
+    call sol_memcmp_
+    ldxw r6, [r9 + 88]
+    jne r6, 0, error_not_initialized
+    ldxdw r2, [r8 + COUNTER_DATA]
+    add64 r2, 1
+    stxdw [r8 + COUNTER_DATA], r2
+    mov64 r0, 0
     exit
 
 decrement:
+    mov64 r1, r8
+    add64 r1, COUNTER_OWNER         ; r1 = counter owner ptr
+    mov64 r2, r8
+    add64 r2, INSTRUCTION_DATA
+    add64 r2, 2                     ; r2 = program_id ptr
+    mov64 r3, 32
+    mov64 r4, r9
+    add64 r4, 88                    ; r4 = result ptr
+    call sol_memcmp_
+    ldxw r6, [r9 + 88]
+    jne r6, 0, error_not_initialized
+    ldxdw r2, [r8 + COUNTER_DATA]
+    sub64 r2, 1
+    stxdw [r8 + COUNTER_DATA], r2
+    mov64 r0, 0
     exit
 
 
@@ -283,6 +313,13 @@ error_invalid_pda:
     lddw r0, 0xc
     exit
 
+error_not_initialized:
+    lddw r1, not_initialized_error_log
+    mov64 r2, 15
+    call sol_log_
+    lddw r0, 0xe
+    exit
+
 error_invalid_instruction:
     lddw r1, invalid_instruction_error_log
     mov64 r2, 19
@@ -295,4 +332,5 @@ error_invalid_instruction:
     invalid_pda_error_log: .ascii "Invalid PDA"
     invalid_instruction_error_log: .ascii "Invalid instruction"
     create_account_error_log: .ascii "Create account failed"
+    not_initialized_error_log: .ascii "Not initialized"
     counter_seed: .ascii "counter"
