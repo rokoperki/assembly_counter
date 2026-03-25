@@ -104,6 +104,34 @@ entrypoint:
 
 
 create:
+    ##################################
+    ## Build CreateAccount ix data  ##
+    ##################################
+
+    sub64 r9, 332
+    mov64 r6, r9
+    add64 r6, 96                            ; r6 = instruction data ptr (r9+96)
+
+    mov64 r5, 0
+    stxw [r6 + 0], r5                       ; discriminator = 0 (CreateAccount)
+    mov64 r5, 890880
+    stxdw [r6 + 4], r5                      ; lamports (rent-exempt for 8 bytes)
+    mov64 r5, 8
+    stxdw [r6 + 12], r5                     ; space = 8 bytes
+
+    ; copy 32-byte program_id from instruction data into owner field
+    ldxdw r5, [r8 + INSTRUCTION_DATA + 2]
+    stxdw [r6 + 20], r5
+    ldxdw r5, [r8 + INSTRUCTION_DATA + 10]
+    stxdw [r6 + 28], r5
+    ldxdw r5, [r8 + INSTRUCTION_DATA + 18]
+    stxdw [r6 + 36], r5
+    ldxdw r5, [r8 + INSTRUCTION_DATA + 26]
+    stxdw [r6 + 44], r5                     ; owner = program_id (bytes 2-33 of ix data)
+
+    
+
+
     exit
 
 increment:
