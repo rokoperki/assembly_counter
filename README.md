@@ -76,6 +76,42 @@ cargo test
 
 Tests use [mollusk-svm](https://github.com/buffalojoec/mollusk) to execute the program in an in-process SVM without a validator.
 
+## Tracing
+
+`trace.txt.0` contains a full execution trace of the `create` instruction. Each line shows the assembly instruction being executed along with the register state at that point — useful for stepping through the logic and verifying register values.
+
+To generate a trace yourself:
+
+```bash
+agave-ledger-tool program run deploy/assembly_counter.so \
+  --ledger test-ledger \
+  --mode interpreter \
+  --input src/assembly_counter/instructions.json \
+  --trace trace.txt
+```
+
+**Note:** `agave-ledger-tool` must be version `2.x.x`. The `program run` command was removed in later versions.
+
+The input for the trace is defined in `src/assembly_counter/instructions.json` — it describes the accounts and instruction data for a `create` call.
+
+Each line in the trace file looks like this:
+
+```
+<step> [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10]   <pc>: <instruction>
+```
+
+For example:
+
+```
+ 0 [0000000000000000, 0000000400000000, ...]     0: mov64 r8, r1
+ 1 [0000000000000000, 0000000400000000, ...]     1: ldxdw r7, [r8+0x28b8]
+ 2 [...]                                         2: add64 r7, 7
+ 3 [... 0000000000000007, ...]                   3: and64 r7, -8
+ 8 [... 0000000000000002, ...]                   8: jne r4, 2, lbb_255
+```
+
+Reading left to right: the step counter, then 11 register values (`r0`–`r10`) showing the state **before** the instruction executes, then the program counter and the instruction itself. You can watch a value appear in a register on the line after the instruction that wrote it.
+
 ## How the program works
 
 ### Register conventions
